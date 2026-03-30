@@ -639,6 +639,41 @@ body {
 .pos-top10 { background: #dbeafe; color: #1e40af; }
 .pos-other { background: #f1f5f9; color: #64748b; }
 
+/* ── Selectable keyword rows (Domain Analysis) ── */
+.kw-row-selectable { cursor: pointer; }
+.kw-row-selectable td { transition: background 0.1s; }
+.kw-row-selectable:hover td { background: #f0f9ff; }
+
+.kw-row-selected td { background: #eff6ff !important; }
+.kw-row-selected .kw-cell { color: #2563eb; font-weight: 600; }
+
+.kw-select-dot {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid #cbd5e1;
+  background: #fff;
+  margin-right: 0.5rem;
+  vertical-align: middle;
+  flex-shrink: 0;
+  transition: border-color 0.15s, background 0.15s;
+}
+.kw-select-dot-on {
+  border-color: #2563eb;
+  background: #2563eb;
+}
+
+.opp-score {
+  display: inline-block;
+  padding: 0.1rem 0.45rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: #f0fdf4;
+  color: #16a34a;
+}
+
 /* ── Responsive ── */
 @media (max-width: 640px) {
   .two-col { grid-template-columns: 1fr; }

@@ -32,6 +32,10 @@ export default function App() {
   const [metricsData, setMetricsData] = useState(null);
   const [metricsLoading, setMetricsLoading] = useState(false);
   const [metricsError, setMetricsError] = useState(null);
+  const [selectedMetricKws, setSelectedMetricKws] = useState(new Set());
+  const [metricsIndustry, setMetricsIndustry] = useState('');
+  const [metricsIndustrySearch, setMetricsIndustrySearch] = useState('');
+  const [showMetricsIndustryDrop, setShowMetricsIndustryDrop] = useState(false);
 
   const allKeywords = services.flatMap(s =>
     locations.map(l => `${s.toLowerCase()} ${l.toLowerCase()}`)
@@ -117,6 +121,7 @@ export default function App() {
     setMetricsLoading(true);
     setMetricsError(null);
     setMetricsData(null);
+    setSelectedMetricKws(new Set());
     const webhookUrl = process.env.REACT_APP_N8N_METRICS_URL;
     if (!webhookUrl || webhookUrl.includes('YOUR_N8N')) {
       setMetricsError('Metrics webhook not configured. Add REACT_APP_N8N_METRICS_URL to your environment variables.');
@@ -164,6 +169,41 @@ export default function App() {
     quoteOutputs = { ts, tier, pricing, mr, roi };
   }
 
+  // ── Domain Analysis: opportunity scoring & ROI ──
+  const oppScore = (kw) => Math.round((kw.volume || 0) * (100 - (kw.keyword_difficulty || 0)) / 100);
+  const sortedMetricsKws = metricsData?.keywords
+    ? [...metricsData.keywords].sort((a, b) => oppScore(b) - oppScore(a))
+    : [];
+  const toggleMetricKw = (keyword) => {
+    setSelectedMetricKws(prev => {
+      const next = new Set(prev);
+      next.has(keyword) ? next.delete(keyword) : next.add(keyword);
+      return next;
+    });
+  };
+  const metricsIndustryOptions = (config?.industries || [])
+    .map(i => i.industry)
+    .filter(i => i.toLowerCase().includes(metricsIndustrySearch.toLowerCase()));
+  const selectedKwData = sortedMetricsKws.filter(k => selectedMetricKws.has(k.keyword));
+  let metricsQuoteOutputs = null;
+  if (selectedKwData.length > 0 && metricsIndustry) {
+    const kwForScoring = selectedKwData.map(k => ({
+      keyword: k.keyword, volume: k.volume || 0, kd: k.keyword_difficulty || 0, cpc: k.cpc || 0,
+    }));
+    const industryData = (config?.industries || []).find(i => i.industry === metricsIndustry) || {};
+    const mts = calcTierScore({ keywords: kwForScoring, suburbCount: 1, isYMYL: industryData.ymyl || false, areaTypes: {} });
+    const mTier = scoreToTier(mts.score);
+    const mPricing = config.tiers?.[mTier] || { min: 1599, max: 2099 };
+    const mMr = calcMonthlyRevenue({
+      volume: mts.avgVolume,
+      convRate: industryData.convRate || config.defaultConvRate || 2.5,
+      closeRate: industryData.closeRate || 35,
+      avgSaleValue: industryData.avgSaleValue || 2000,
+    });
+    const mRoi = calcROI({ monthlyRevenue: mMr.revenue, retainerMin: mPricing.min, retainerMax: mPricing.max || mPricing.min * 1.5 });
+    metricsQuoteOutputs = { ts: mts, tier: mTier, pricing: mPricing, mr: mMr, roi: mRoi };
+  }
+
   const step2Active = allKeywords.length > 0;
   const step3Active = !!quoteData;
 
@@ -176,7 +216,7 @@ export default function App() {
       {/* Tab bar */}
       <div className="tab-bar">
         <button className={`tab-btn${activeTab === 'metrics' ? ' active' : ''}`} onClick={() => setActiveTab('metrics')}>
-          Metrics Report
+          Domain Analysis
         </button>
         <button className={`tab-btn${activeTab === 'quote' ? ' active' : ''}`} onClick={() => setActiveTab('quote')}>
           Sales Quote
@@ -187,75 +227,172 @@ export default function App() {
         <div className="page-content">
           <div className="header-card">
             <div className="header-text">
-              <h1>Metrics Report</h1>
-              <p>Enter a client's domain to pull their top organic keywords from Ahrefs</p>
+              <h1>Domain Analysis</h1>
+              <p>Analyse a client's domain, identify keyword opportunities and estimate ROI</p>
             </div>
           </div>
 
+          {/* ── Step 1: Setup ── */}
           <div className="section-card">
             <div className="section-header">
               <div className="section-num">1</div>
               <div>
-                <div className="section-title">Client Domain</div>
-                <div className="section-sub">Enter the website you want to analyse</div>
+                <div className="section-title">Client Setup</div>
+                <div className="section-sub">Enter the domain and industry to analyse</div>
               </div>
             </div>
-            <div className="metrics-input-row">
-              <div className="search-input-box metrics-domain-box">
-                <svg className="search-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="10" cy="10" r="7"/><path d="M3 10h14M10 3c-2 2.5-2 11.5 0 14M10 3c2 2.5 2 11.5 0 14"/>
-                </svg>
-                <input
-                  className="search-input"
-                  placeholder="e.g. sydneyplumber.com.au"
-                  value={domain}
-                  onChange={e => setDomain(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && fetchMetrics()}
-                />
+            <div className="two-col">
+              <div>
+                <div className="col-label">Client Domain</div>
+                <div className="col-hint">Website to pull organic keywords from</div>
+                <div className="search-input-box">
+                  <svg className="search-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="10" cy="10" r="7"/><path d="M3 10h14M10 3c-2 2.5-2 11.5 0 14M10 3c2 2.5 2 11.5 0 14"/>
+                  </svg>
+                  <input
+                    className="search-input"
+                    placeholder="e.g. melbourneplumber.com.au"
+                    value={domain}
+                    onChange={e => setDomain(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && fetchMetrics()}
+                  />
+                </div>
               </div>
+              <div>
+                <div className="col-label">Industry</div>
+                <div className="col-hint">Used to calculate revenue &amp; ROI estimates</div>
+                <div className="search-wrap">
+                  <div className="search-input-box">
+                    <svg className="search-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="9" cy="9" r="6"/><path d="M15 15l-3-3"/>
+                    </svg>
+                    <input
+                      className="search-input"
+                      placeholder={metricsIndustry || 'Search industry...'}
+                      value={metricsIndustrySearch}
+                      onChange={e => { setMetricsIndustrySearch(e.target.value); setShowMetricsIndustryDrop(true); }}
+                      onFocus={() => setShowMetricsIndustryDrop(true)}
+                      onBlur={() => setTimeout(() => setShowMetricsIndustryDrop(false), 150)}
+                    />
+                  </div>
+                  {showMetricsIndustryDrop && metricsIndustryOptions.length > 0 && (
+                    <div className="dropdown">
+                      {metricsIndustryOptions.slice(0, 8).map(s => (
+                        <div key={s} className="dropdown-item" onMouseDown={() => { setMetricsIndustry(s); setMetricsIndustrySearch(''); setShowMetricsIndustryDrop(false); }}>{s}</div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {metricsIndustry && <div className="input-hint">Selected: <strong>{metricsIndustry}</strong></div>}
+              </div>
+            </div>
+            <div style={{ marginTop: '1rem' }}>
               <button className="regen-btn" onClick={fetchMetrics} disabled={!domain.trim() || metricsLoading}>
-                {metricsLoading ? <><span className="btn-spinner" /> Pulling data...</> : <>⚡ Pull Metrics</>}
+                {metricsLoading ? <><span className="btn-spinner" /> Pulling data...</> : <>⚡ Analyse Domain</>}
               </button>
             </div>
             {metricsError && <div className="metrics-error">{metricsError}</div>}
           </div>
 
-          {metricsData && (
+          {/* ── Step 2: Keywords ── */}
+          {sortedMetricsKws.length > 0 && (
             <div className="section-card">
               <div className="section-header">
                 <div className="section-num">2</div>
                 <div style={{ flex: 1 }}>
-                  <div className="section-title">Top Organic Keywords</div>
-                  <div className="section-sub">{domain} · AU · sorted by traffic</div>
+                  <div className="section-title">Keyword Opportunities</div>
+                  <div className="section-sub">{domain} · sorted by opportunity score (high volume, low difficulty)</div>
                 </div>
-                <div className="active-badge">{metricsData.keywords?.length || 0} keywords</div>
+                {selectedMetricKws.size > 0
+                  ? <div className="active-badge">{selectedMetricKws.size} selected</div>
+                  : <div className="active-badge">{sortedMetricsKws.length} keywords</div>
+                }
               </div>
+              <p className="keywords-instruction">
+                <strong>Click keywords to select them</strong> — selected keywords will drive the ROI estimate below.
+              </p>
               <div className="kw-table-wrap">
                 <table className="kw-table">
                   <thead>
                     <tr>
                       <th>Keyword</th>
+                      <th className="num-col">Opp ↓</th>
                       <th className="num-col">Pos</th>
                       <th className="num-col">Volume</th>
-                      <th className="num-col">Traffic</th>
                       <th className="num-col">KD</th>
                       <th className="num-col">CPC</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {(metricsData.keywords || []).map((kw, i) => (
-                      <tr key={i}>
-                        <td className="kw-cell">{kw.keyword}</td>
-                        <td className="num-col"><span className={`pos-badge ${kw.best_position <= 3 ? 'pos-top3' : kw.best_position <= 10 ? 'pos-top10' : 'pos-other'}`}>{kw.best_position}</span></td>
-                        <td className="num-col">{(kw.volume || 0).toLocaleString()}</td>
-                        <td className="num-col">{(kw.sum_traffic || 0).toLocaleString()}</td>
-                        <td className="num-col">{kw.keyword_difficulty ?? '—'}</td>
-                        <td className="num-col">{kw.cpc ? '$' + (kw.cpc / 100).toFixed(2) : '—'}</td>
-                      </tr>
-                    ))}
+                    {sortedMetricsKws.map((kw, i) => {
+                      const selected = selectedMetricKws.has(kw.keyword);
+                      return (
+                        <tr key={i} className={`kw-row-selectable${selected ? ' kw-row-selected' : ''}`} onClick={() => toggleMetricKw(kw.keyword)}>
+                          <td className="kw-cell">
+                            <span className={`kw-select-dot${selected ? ' kw-select-dot-on' : ''}`} />
+                            {kw.keyword}
+                          </td>
+                          <td className="num-col"><span className="opp-score">{oppScore(kw).toLocaleString()}</span></td>
+                          <td className="num-col"><span className={`pos-badge ${kw.best_position <= 3 ? 'pos-top3' : kw.best_position <= 10 ? 'pos-top10' : 'pos-other'}`}>{kw.best_position}</span></td>
+                          <td className="num-col">{(kw.volume || 0).toLocaleString()}</td>
+                          <td className="num-col">{kw.keyword_difficulty ?? '—'}</td>
+                          <td className="num-col">{kw.cpc ? '$' + (kw.cpc / 100).toFixed(2) : '—'}</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
+            </div>
+          )}
+
+          {/* ── Step 3: ROI Estimate ── */}
+          {metricsQuoteOutputs && (() => {
+            const { ts, tier, pricing, mr, roi } = metricsQuoteOutputs;
+            const maxPrice = pricing.max || Math.round(pricing.min * 1.5);
+            return (
+              <div className="quote-card">
+                <div className="quote-header">
+                  <div className="section-num-light">3</div>
+                  <div style={{ flex: 1 }}>
+                    <div className="quote-title">ROI Estimate</div>
+                    <div className="quote-sub">{selectedMetricKws.size} keyword{selectedMetricKws.size !== 1 ? 's' : ''} selected · {metricsIndustry} · {domain}</div>
+                  </div>
+                  <div className="check-circle">✓</div>
+                </div>
+                <div className="quote-metrics">
+                  <div className="metric-card">
+                    <div className="metric-icon-circle">◎</div>
+                    <div className="metric-label">RECOMMENDED PACKAGE</div>
+                    <div className="metric-value tier-val">{tier}</div>
+                    <div className="metric-sub">Score: {ts.score}/100</div>
+                  </div>
+                  <div className="metric-card">
+                    <div className="metric-icon-dollar">$</div>
+                    <div className="metric-label">MONTHLY INVESTMENT</div>
+                    <div className="metric-value price-val">{fmtAUD(pricing.min)}–<br />{fmtAUD(maxPrice)}</div>
+                    <div className="metric-sub">per month</div>
+                  </div>
+                  <div className="metric-card">
+                    <div className="metric-trend">↗</div>
+                    <div className="metric-label">EST. MONTHLY REVENUE</div>
+                    <div className="metric-value revenue-val">{fmtAUD(mr.revenue)}</div>
+                    <div className="metric-sub">{selectedMetricKws.size} keyword{selectedMetricKws.size !== 1 ? 's' : ''}</div>
+                  </div>
+                  <div className="metric-card">
+                    <div className="metric-trend">↗</div>
+                    <div className="metric-label">ESTIMATED ROI</div>
+                    <div className="metric-value roi-val">{Math.round(roi.roi)}%</div>
+                    <div className="metric-sub roi-range">✓ Target range: 200–400%</div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {sortedMetricsKws.length > 0 && selectedMetricKws.size > 0 && !metricsIndustry && (
+            <div className="metrics-error" style={{ background: '#fffbeb', borderColor: '#fde68a', color: '#92400e' }}>
+              Select an industry above to see the ROI estimate
             </div>
           )}
         </div>
