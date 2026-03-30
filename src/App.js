@@ -114,6 +114,7 @@ export default function App() {
       keywords: quoteData.keywords || [],
       suburbCount: locations.length,
       isYMYL: quoteData.ymyl?.isYMYL || false,
+      areaTypes: quoteData.areaTypes || {},
     });
     const tier = scoreToTier(ts.score);
     const pricing = config.tiers?.[tier] || { min: 1599, max: 2099 };
@@ -315,8 +316,12 @@ export default function App() {
 
           {/* ── Step 3: Quote ── */}
           {quoteData && quoteOutputs && (() => {
-            const { tier, pricing, mr, roi } = quoteOutputs;
+            const { ts, tier, pricing, mr, roi } = quoteOutputs;
             const maxPrice = pricing.max || Math.round(pricing.min * 1.5);
+            const areaTypes = quoteData.areaTypes || {};
+            const areaEntries = Object.entries(areaTypes);
+            const metroCount = areaEntries.filter(([, v]) => v === 'Metro').length;
+            const regionalCount = areaEntries.length - metroCount;
             return (
               <div className="quote-card">
                 <div className="quote-header">
@@ -335,6 +340,7 @@ export default function App() {
                     <div className="metric-icon-circle">◎</div>
                     <div className="metric-label">RECOMMENDED PACKAGE</div>
                     <div className="metric-value tier-val">{tier}</div>
+                    <div className="metric-sub">Score: {ts.score}/100</div>
                   </div>
                   <div className="metric-card">
                     <div className="metric-icon-dollar">$</div>
@@ -357,6 +363,21 @@ export default function App() {
                     <div className="metric-sub roi-range">✓ Target range: 200–400%</div>
                   </div>
                 </div>
+
+                {areaEntries.length > 0 && (
+                  <div className="quote-detail-row">
+                    <span className="detail-label">Area type:</span>
+                    {metroCount > 0 && <span className="detail-badge detail-metro">{metroCount} Metro</span>}
+                    {regionalCount > 0 && <span className="detail-badge detail-regional">{regionalCount} Regional</span>}
+                    {quoteData.ymyl?.isYMYL && <span className="detail-badge detail-ymyl">YMYL</span>}
+                    <span className="detail-sep">·</span>
+                    <span className="detail-label">Avg volume:</span>
+                    <span className="detail-val">{Math.round(ts.avgVolume).toLocaleString()}/mo</span>
+                    <span className="detail-sep">·</span>
+                    <span className="detail-label">Avg KD:</span>
+                    <span className="detail-val">{Math.round(ts.avgKD)}</span>
+                  </div>
+                )}
 
                 {quoteData.demoMode && (
                   <div className="demo-banner">

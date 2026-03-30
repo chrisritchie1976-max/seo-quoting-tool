@@ -12,7 +12,7 @@ export function calcTrafficValue({ volume, cpc }) {
 }
 
 // Formula 2: Tier score (0-100)
-export function calcTierScore({ keywords, suburbCount, isYMYL }) {
+export function calcTierScore({ keywords, suburbCount, isYMYL, areaTypes = {} }) {
   let score = 0;
   const totalVolume = keywords.reduce((s, k) => s + (k.volume || 0), 0);
   const avgVolume = keywords.length ? totalVolume / keywords.length : 0;
@@ -56,7 +56,16 @@ export function calcTierScore({ keywords, suburbCount, isYMYL }) {
   else if (cpcUSD > 2)  score += 4;
   else                  score += 2;
 
-  return { score: Math.min(score, 100), avgKD, avgVolume, totalVolume, avgCPC };
+  // Metro area bonus (0-10) — Metro suburbs are more competitive
+  const areaValues = Object.values(areaTypes);
+  const metroCount = areaValues.filter(v => v === 'Metro').length;
+  const metroRatio = areaValues.length > 0 ? metroCount / areaValues.length : 0;
+  if (metroRatio >= 1.0)       score += 10;
+  else if (metroRatio >= 0.75) score += 7;
+  else if (metroRatio >= 0.5)  score += 5;
+  else if (metroRatio > 0)     score += 3;
+
+  return { score: Math.min(score, 100), avgKD, avgVolume, totalVolume, avgCPC, metroRatio };
 }
 
 export function scoreToTier(score) {

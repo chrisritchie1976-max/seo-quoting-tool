@@ -506,6 +506,33 @@ body {
 .roi-val { color: #16a34a; font-size: 1.9rem; }
 .roi-range { color: #16a34a; font-weight: 500; }
 
+/* ── Quote detail row ── */
+.quote-detail-row {
+  background: #f8fafc;
+  border-top: 1px solid #f1f5f9;
+  padding: 0.6rem 1.25rem;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+}
+
+.detail-label { color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.7rem; }
+.detail-val { color: #1e293b; font-weight: 600; }
+.detail-sep { color: #cbd5e1; }
+
+.detail-badge {
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.detail-metro { background: #dbeafe; color: #1d4ed8; }
+.detail-regional { background: #fef9c3; color: #854d0e; }
+.detail-ymyl { background: #fce7f3; color: #9d174d; }
+
 /* ── Demo banner ── */
 .demo-banner {
   background: #fffbeb;
