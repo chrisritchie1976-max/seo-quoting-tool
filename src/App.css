@@ -554,6 +554,91 @@ body {
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* ── Metrics tab ── */
+.metrics-input-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.metrics-domain-box {
+  flex: 1;
+}
+
+.metrics-error {
+  margin-top: 0.75rem;
+  font-size: 0.82rem;
+  color: #b91c1c;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 0.6rem 0.85rem;
+}
+
+/* ── Keyword table (shared between metrics + quote) ── */
+.kw-table-wrap {
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid #f1f5f9;
+}
+
+.kw-table-quote {
+  border-top: 1px solid #f1f5f9;
+  border-radius: 0;
+  border-left: none;
+  border-right: none;
+  border-bottom: none;
+}
+
+.kw-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.kw-table thead tr {
+  background: #f8fafc;
+}
+
+.kw-table th {
+  padding: 0.55rem 0.85rem;
+  text-align: left;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.kw-table td {
+  padding: 0.55rem 0.85rem;
+  color: #1e293b;
+  border-bottom: 1px solid #f8fafc;
+}
+
+.kw-table tbody tr:last-child td { border-bottom: none; }
+.kw-table tbody tr:hover td { background: #f8fafc; }
+
+.kw-cell { font-weight: 500; }
+
+.num-col { text-align: right; }
+
+.kw-row-removed td { opacity: 0.4; text-decoration: line-through; }
+
+.pos-badge {
+  display: inline-block;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 0.78rem;
+}
+
+.pos-top3 { background: #dcfce7; color: #166534; }
+.pos-top10 { background: #dbeafe; color: #1e40af; }
+.pos-other { background: #f1f5f9; color: #64748b; }
+
 /* ── Responsive ── */
 @media (max-width: 640px) {
   .two-col { grid-template-columns: 1fr; }

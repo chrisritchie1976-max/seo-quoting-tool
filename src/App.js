@@ -28,6 +28,11 @@ export default function App() {
   const [quoteData, setQuoteData] = useState(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
 
+  const [domain, setDomain] = useState('');
+  const [metricsData, setMetricsData] = useState(null);
+  const [metricsLoading, setMetricsLoading] = useState(false);
+  const [metricsError, setMetricsError] = useState(null);
+
   const allKeywords = services.flatMap(s =>
     locations.map(l => `${s.toLowerCase()} ${l.toLowerCase()}`)
   );
@@ -107,6 +112,32 @@ export default function App() {
     setQuoteLoading(false);
   };
 
+  const fetchMetrics = async () => {
+    if (!domain.trim()) return;
+    setMetricsLoading(true);
+    setMetricsError(null);
+    setMetricsData(null);
+    const webhookUrl = process.env.REACT_APP_N8N_METRICS_URL;
+    if (!webhookUrl || webhookUrl.includes('YOUR_N8N')) {
+      setMetricsError('Metrics webhook not configured. Add REACT_APP_N8N_METRICS_URL to your environment variables.');
+      setMetricsLoading(false);
+      return;
+    }
+    try {
+      const res = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ domain: domain.trim() }),
+      });
+      const data = await res.json();
+      setMetricsData(data);
+    } catch (err) {
+      setMetricsError('Failed to fetch metrics. Check the webhook URL and try again.');
+      console.error('metrics error:', err);
+    }
+    setMetricsLoading(false);
+  };
+
   // Compute quote outputs
   let quoteOutputs = null;
   if (quoteData) {
@@ -157,9 +188,76 @@ export default function App() {
           <div className="header-card">
             <div className="header-text">
               <h1>Metrics Report</h1>
-              <p>Connect Google Search Console to view performance data.</p>
+              <p>Enter a client's domain to pull their top organic keywords from Ahrefs</p>
             </div>
           </div>
+
+          <div className="section-card">
+            <div className="section-header">
+              <div className="section-num">1</div>
+              <div>
+                <div className="section-title">Client Domain</div>
+                <div className="section-sub">Enter the website you want to analyse</div>
+              </div>
+            </div>
+            <div className="metrics-input-row">
+              <div className="search-input-box metrics-domain-box">
+                <svg className="search-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="10" cy="10" r="7"/><path d="M3 10h14M10 3c-2 2.5-2 11.5 0 14M10 3c2 2.5 2 11.5 0 14"/>
+                </svg>
+                <input
+                  className="search-input"
+                  placeholder="e.g. sydneyplumber.com.au"
+                  value={domain}
+                  onChange={e => setDomain(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && fetchMetrics()}
+                />
+              </div>
+              <button className="regen-btn" onClick={fetchMetrics} disabled={!domain.trim() || metricsLoading}>
+                {metricsLoading ? <><span className="btn-spinner" /> Pulling data...</> : <>⚡ Pull Metrics</>}
+              </button>
+            </div>
+            {metricsError && <div className="metrics-error">{metricsError}</div>}
+          </div>
+
+          {metricsData && (
+            <div className="section-card">
+              <div className="section-header">
+                <div className="section-num">2</div>
+                <div style={{ flex: 1 }}>
+                  <div className="section-title">Top Organic Keywords</div>
+                  <div className="section-sub">{domain} · AU · sorted by traffic</div>
+                </div>
+                <div className="active-badge">{metricsData.keywords?.length || 0} keywords</div>
+              </div>
+              <div className="kw-table-wrap">
+                <table className="kw-table">
+                  <thead>
+                    <tr>
+                      <th>Keyword</th>
+                      <th className="num-col">Pos</th>
+                      <th className="num-col">Volume</th>
+                      <th className="num-col">Traffic</th>
+                      <th className="num-col">KD</th>
+                      <th className="num-col">CPC</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(metricsData.keywords || []).map((kw, i) => (
+                      <tr key={i}>
+                        <td className="kw-cell">{kw.keyword}</td>
+                        <td className="num-col"><span className={`pos-badge ${kw.best_position <= 3 ? 'pos-top3' : kw.best_position <= 10 ? 'pos-top10' : 'pos-other'}`}>{kw.best_position}</span></td>
+                        <td className="num-col">{(kw.volume || 0).toLocaleString()}</td>
+                        <td className="num-col">{(kw.sum_traffic || 0).toLocaleString()}</td>
+                        <td className="num-col">{kw.keyword_difficulty ?? '—'}</td>
+                        <td className="num-col">{kw.cpc ? '$' + (kw.cpc / 100).toFixed(2) : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -376,6 +474,31 @@ export default function App() {
                     <span className="detail-sep">·</span>
                     <span className="detail-label">Avg KD:</span>
                     <span className="detail-val">{Math.round(ts.avgKD)}</span>
+                  </div>
+                )}
+
+                {quoteData.keywords?.length > 0 && (
+                  <div className="kw-table-wrap kw-table-quote">
+                    <table className="kw-table">
+                      <thead>
+                        <tr>
+                          <th>Keyword</th>
+                          <th className="num-col">Volume</th>
+                          <th className="num-col">KD</th>
+                          <th className="num-col">CPC</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {quoteData.keywords.map((kw, i) => (
+                          <tr key={i} className={removedKeywords.has(kw.keyword) ? 'kw-row-removed' : ''}>
+                            <td className="kw-cell">{kw.keyword}</td>
+                            <td className="num-col">{(kw.volume || 0).toLocaleString()}</td>
+                            <td className="num-col">{kw.kd ?? '—'}</td>
+                            <td className="num-col">{kw.cpc ? '$' + (kw.cpc / 100).toFixed(2) : '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 )}
 
