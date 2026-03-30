@@ -1,0 +1,135 @@
+{
+  "name": "SEO Quote Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "seo-quote",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.ahrefs.com/v3/keywords-explorer/overview",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "country",
+              "value": "au"
+            },
+            {
+              "name": "keywords",
+              "value": "={{ $json.body.keywords.join(',') }}"
+            },
+            {
+              "name": "select",
+              "value": "keyword,volume,difficulty,cpc"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ahrefs-keywords",
+      "name": "Ahrefs Keywords",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 200],
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "ahrefs-api",
+          "name": "Ahrefs API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $credentials.anthropicApi.apiKey }}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"claude-sonnet-4-20250514\",\n  \"max_tokens\": 1000,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"You are an Australian SEO data expert. Given these suburbs, classify each as Metro or Regional using ABS urban classification standards. Metro = Major Cities (Sydney, Melbourne, Brisbane, Gold Coast, Perth, Adelaide, Canberra). Regional = everything else. Also classify these services as YMYL (Your Money or Your Life) or not — YMYL industries are legal, medical, financial, and health services where Google applies higher quality standards. Also provide Australian industry benchmarks for close rate (%) and average sale value (AUD) for the primary service. Return ONLY valid JSON, no markdown, no explanation.\\n\\nSuburbs: {{ $('Webhook').item.json.body.suburbs.join(', ') }}\\nServices: {{ $('Webhook').item.json.body.services.join(', ') }}\\n\\nReturn this exact JSON structure:\\n{\\n  \\\"areaTypes\\\": { \\\"SuburbName\\\": \\\"Metro\\\" },\\n  \\\"ymyl\\\": { \\\"isYMYL\\\": false, \\\"reason\\\": \\\"brief reason\\\" },\\n  \\\"benchmarks\\\": { \\\"industry\\\": \\\"Plumber\\\", \\\"closeRate\\\": 35, \\\"avgSaleValue\\\": 850, \\\"convRate\\\": 3.0 }\\n}\"\n    }\n  ]\n}",
+        "options": {}
+      },
+      "id": "claude-enrichment",
+      "name": "Claude Enrichment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 400],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "anthropic-api",
+          "name": "Anthropic API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get Ahrefs keyword data\nconst ahrefsData = $('Ahrefs Keywords').item.json;\nconst keywords = ahrefsData.keywords || [];\n\n// Normalize CPC (Ahrefs returns cents) and handle null KD\nconst normalizedKeywords = keywords.map(k => ({\n  keyword: k.keyword,\n  volume: k.volume || 0,\n  kd: k.difficulty !== null && k.difficulty !== undefined ? k.difficulty : 0,\n  cpc: k.cpc || 0\n}));\n\n// Get Claude enrichment data\nconst claudeResponse = $('Claude Enrichment').item.json;\nconst content = claudeResponse.content?.[0]?.text || '{}';\n\nlet enrichment = {};\ntry {\n  enrichment = JSON.parse(content);\n} catch(e) {\n  enrichment = {\n    areaTypes: {},\n    ymyl: { isYMYL: false, reason: 'Parse error — defaulting to non-YMYL' },\n    benchmarks: { industry: 'Unknown', closeRate: 35, avgSaleValue: 1000, convRate: 2.5 }\n  };\n}\n\nreturn {\n  keywords: normalizedKeywords,\n  areaTypes: enrichment.areaTypes || {},\n  ymyl: enrichment.ymyl || { isYMYL: false },\n  benchmarks: enrichment.benchmarks || null\n};"
+      },
+      "id": "merge-results",
+      "name": "Merge Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              { "name": "Access-Control-Allow-Origin", "value": "*" },
+              { "name": "Content-Type", "value": "application/json" }
+            ]
+          }
+        }
+      },
+      "id": "respond-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [960, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          { "node": "Ahrefs Keywords", "type": "main", "index": 0 },
+          { "node": "Claude Enrichment", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Ahrefs Keywords": {
+      "main": [[{ "node": "Merge Results", "type": "main", "index": 0 }]]
+    },
+    "Claude Enrichment": {
+      "main": [[{ "node": "Merge Results", "type": "main", "index": 1 }]]
+    },
+    "Merge Results": {
+      "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
