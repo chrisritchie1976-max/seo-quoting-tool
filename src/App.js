@@ -58,7 +58,14 @@ export default function App() {
     }
     setServiceSearch('');
   };
-  const addLocation = (l) => { setLocations(prev => [...prev, l]); setLocationSearch(''); setShowLocationDrop(false); };
+  const addLocation = (l) => {
+    const trimmed = l.trim();
+    if (trimmed && !locations.includes(trimmed)) {
+      setLocations(prev => [...prev, trimmed]);
+    }
+    setLocationSearch('');
+    setShowLocationDrop(false);
+  };
   const removeService = (s) => setServices(prev => prev.filter(x => x !== s));
   const removeLocation = (l) => setLocations(prev => prev.filter(x => x !== l));
 
@@ -477,11 +484,12 @@ export default function App() {
                     </svg>
                     <input
                       className="search-input"
-                      placeholder="Search locations..."
+                      placeholder="Search or type any location..."
                       value={locationSearch}
                       onChange={e => { setLocationSearch(e.target.value); setShowLocationDrop(true); }}
                       onFocus={() => setShowLocationDrop(true)}
-                      onBlur={() => setTimeout(() => setShowLocationDrop(false), 150)}
+                      onKeyDown={e => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); if (locationSearch.trim()) { addLocation(locationSearch.trim()); } } }}
+                      onBlur={() => { setTimeout(() => setShowLocationDrop(false), 150); if (locationSearch.trim()) addLocation(locationSearch.trim()); }}
                     />
                   </div>
                   {showLocationDrop && locationOptions.length > 0 && (
@@ -494,7 +502,7 @@ export default function App() {
                       ))}
                     </div>
                   )}
-                  <div className="input-hint">Search and select from the list</div>
+                  <div className="input-hint">Search the list or type any location and click away to add</div>
                 </div>
               </div>
             </div>
