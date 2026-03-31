@@ -21,7 +21,6 @@ export default function App() {
   const [locations, setLocations] = useState([]);
   const [serviceSearch, setServiceSearch] = useState('');
   const [locationSearch, setLocationSearch] = useState('');
-  const [showServiceDrop, setShowServiceDrop] = useState(false);
   const [showLocationDrop, setShowLocationDrop] = useState(false);
 
   const [removedKeywords, setRemovedKeywords] = useState(new Set());
@@ -34,8 +33,6 @@ export default function App() {
   const [metricsError, setMetricsError] = useState(null);
   const [selectedMetricKws, setSelectedMetricKws] = useState(new Set());
   const [metricsIndustry, setMetricsIndustry] = useState('');
-  const [metricsIndustrySearch, setMetricsIndustrySearch] = useState('');
-  const [showMetricsIndustryDrop, setShowMetricsIndustryDrop] = useState(false);
 
   const allKeywords = services.flatMap(s =>
     locations.map(l => `${s.toLowerCase()} ${l.toLowerCase()}`)
@@ -50,17 +47,17 @@ export default function App() {
   // Reset quote when inputs change
   useEffect(() => { setQuoteData(null); }, [services, locations]);
 
-  const industryList = (config?.industries || []).map(i => i.industry);
-
-  const serviceOptions = industryList
-    .filter(s => s.toLowerCase().includes(serviceSearch.toLowerCase()) && !services.includes(s))
-    .slice(0, 8);
-
   const locationOptions = ALL_LOCATIONS
     .filter(l => l.name.toLowerCase().includes(locationSearch.toLowerCase()) && !locations.includes(l.name))
     .slice(0, 8);
 
-  const addService = (s) => { setServices(prev => [...prev, s]); setServiceSearch(''); setShowServiceDrop(false); };
+  const addService = (s) => {
+    const trimmed = s.trim();
+    if (trimmed && !services.includes(trimmed)) {
+      setServices(prev => [...prev, trimmed]);
+    }
+    setServiceSearch('');
+  };
   const addLocation = (l) => { setLocations(prev => [...prev, l]); setLocationSearch(''); setShowLocationDrop(false); };
   const removeService = (s) => setServices(prev => prev.filter(x => x !== s));
   const removeLocation = (l) => setLocations(prev => prev.filter(x => x !== l));
@@ -88,7 +85,10 @@ export default function App() {
         kd: Math.floor(Math.random() * 40) + 20,
         cpc: Math.floor(Math.random() * 1500) + 150,
       }));
-      const industryData = config.industries.find(i => i.industry === services[0]) || {};
+      const svcLower = (services[0] || '').toLowerCase();
+      const industryData = config.industries.find(i =>
+        i.industry.toLowerCase().includes(svcLower) || svcLower.includes(i.industry.toLowerCase())
+      ) || {};
       setQuoteData({
         keywords: mockKeywords,
         areaTypes: Object.fromEntries(locations.map(l => [l, 'Metro'])),
@@ -181,16 +181,23 @@ export default function App() {
       return next;
     });
   };
-  const metricsIndustryOptions = (config?.industries || [])
-    .map(i => i.industry)
-    .filter(i => i.toLowerCase().includes(metricsIndustrySearch.toLowerCase()));
   const selectedKwData = sortedMetricsKws.filter(k => selectedMetricKws.has(k.keyword));
+
+  // Fuzzy-match typed industry name against config benchmarks
+  const findIndustryData = (name) => {
+    if (!name) return {};
+    const lower = name.toLowerCase();
+    return (config?.industries || []).find(i =>
+      i.industry.toLowerCase().includes(lower) || lower.includes(i.industry.toLowerCase())
+    ) || {};
+  };
+
   let metricsQuoteOutputs = null;
   if (selectedKwData.length > 0 && metricsIndustry) {
     const kwForScoring = selectedKwData.map(k => ({
       keyword: k.keyword, volume: k.volume || 0, kd: k.keyword_difficulty || 0, cpc: k.cpc || 0,
     }));
-    const industryData = (config?.industries || []).find(i => i.industry === metricsIndustry) || {};
+    const industryData = findIndustryData(metricsIndustry);
     const mts = calcTierScore({ keywords: kwForScoring, suburbCount: 1, isYMYL: industryData.ymyl || false, areaTypes: {} });
     const mTier = scoreToTier(mts.score);
     const mPricing = config.tiers?.[mTier] || { min: 1599, max: 2099 };
@@ -259,31 +266,20 @@ export default function App() {
                 </div>
               </div>
               <div>
-                <div className="col-label">Industry</div>
-                <div className="col-hint">Used to calculate revenue &amp; ROI estimates</div>
-                <div className="search-wrap">
-                  <div className="search-input-box">
-                    <svg className="search-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
-                      <circle cx="9" cy="9" r="6"/><path d="M15 15l-3-3"/>
-                    </svg>
-                    <input
-                      className="search-input"
-                      placeholder={metricsIndustry || 'Search industry...'}
-                      value={metricsIndustrySearch}
-                      onChange={e => { setMetricsIndustrySearch(e.target.value); setShowMetricsIndustryDrop(true); }}
-                      onFocus={() => setShowMetricsIndustryDrop(true)}
-                      onBlur={() => setTimeout(() => setShowMetricsIndustryDrop(false), 150)}
-                    />
-                  </div>
-                  {showMetricsIndustryDrop && metricsIndustryOptions.length > 0 && (
-                    <div className="dropdown">
-                      {metricsIndustryOptions.slice(0, 8).map(s => (
-                        <div key={s} className="dropdown-item" onMouseDown={() => { setMetricsIndustry(s); setMetricsIndustrySearch(''); setShowMetricsIndustryDrop(false); }}>{s}</div>
-                      ))}
-                    </div>
-                  )}
+                <div className="col-label">Target Service</div>
+                <div className="col-hint">Used to estimate revenue &amp; ROI</div>
+                <div className="search-input-box">
+                  <svg className="search-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="9" cy="9" r="6"/><path d="M15 15l-3-3"/>
+                  </svg>
+                  <input
+                    className="search-input"
+                    placeholder="e.g. Plumbing Services, Roofer, Dentist"
+                    value={metricsIndustry}
+                    onChange={e => setMetricsIndustry(e.target.value)}
+                  />
                 </div>
-                {metricsIndustry && <div className="input-hint">Selected: <strong>{metricsIndustry}</strong></div>}
+                <div className="input-hint">Type any service — benchmarks auto-matched where possible</div>
               </div>
             </div>
             <div style={{ marginTop: '1rem' }}>
@@ -447,29 +443,19 @@ export default function App() {
                     </span>
                   ))}
                 </div>
-                <div className="search-wrap">
-                  <div className="search-input-box">
-                    <svg className="search-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
-                      <circle cx="9" cy="9" r="6" /><path d="M15 15l-3-3" />
-                    </svg>
-                    <input
-                      className="search-input"
-                      placeholder="Search services..."
-                      value={serviceSearch}
-                      onChange={e => { setServiceSearch(e.target.value); setShowServiceDrop(true); }}
-                      onFocus={() => setShowServiceDrop(true)}
-                      onBlur={() => setTimeout(() => setShowServiceDrop(false), 150)}
-                    />
-                  </div>
-                  {showServiceDrop && serviceOptions.length > 0 && (
-                    <div className="dropdown">
-                      {serviceOptions.map(s => (
-                        <div key={s} className="dropdown-item" onMouseDown={() => addService(s)}>{s}</div>
-                      ))}
-                    </div>
-                  )}
-                  <div className="input-hint">Search and select from the list</div>
+                <div className="search-input-box">
+                  <svg className="search-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="9" cy="9" r="6" /><path d="M15 15l-3-3" />
+                  </svg>
+                  <input
+                    className="search-input"
+                    placeholder="e.g. Plumbing Services — press Enter to add"
+                    value={serviceSearch}
+                    onChange={e => setServiceSearch(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addService(serviceSearch); } }}
+                  />
                 </div>
+                <div className="input-hint">Type any service name and press Enter to add</div>
               </div>
 
               {/* Locations */}
