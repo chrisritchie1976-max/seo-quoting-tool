@@ -453,6 +453,7 @@ export default function App() {
                     value={serviceSearch}
                     onChange={e => setServiceSearch(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addService(serviceSearch); } }}
+                    onBlur={() => { if (serviceSearch.trim()) addService(serviceSearch); }}
                   />
                 </div>
                 <div className="input-hint">Type any service name and press Enter to add</div>
