@@ -674,10 +674,188 @@ body {
   color: #16a34a;
 }
 
+/* ── Paid Ads Tab ── */
+.pa-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+.pa-form-grid-3 {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+.pa-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.pa-input {
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  color: #1e293b;
+  background: #fff;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+.pa-input:focus { border-color: #6366f1; }
+.pa-input-num { max-width: 160px; }
+.pa-textarea {
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  color: #1e293b;
+  background: #fff;
+  outline: none;
+  resize: vertical;
+  min-height: 72px;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+.pa-textarea:focus { border-color: #6366f1; }
+
+.pa-optional-toggle {
+  margin-top: 1rem;
+  background: none;
+  border: none;
+  color: #6366f1;
+  font-size: 0.82rem;
+  cursor: pointer;
+  padding: 0;
+  font-weight: 600;
+}
+.pa-optional-label {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: #94a3b8;
+  margin-left: 0.4rem;
+}
+
+.pa-budget-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.pa-budget-toggle {
+  display: flex;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.pa-budget-toggle button {
+  padding: 0.5rem 1rem;
+  border: none;
+  background: #fff;
+  font-size: 0.82rem;
+  cursor: pointer;
+  color: #64748b;
+  font-weight: 500;
+}
+.pa-budget-toggle button.active {
+  background: #6366f1;
+  color: #fff;
+}
+
+.pa-prefix-input {
+  display: flex;
+  align-items: center;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+  width: fit-content;
+}
+.pa-prefix-input .pa-input,
+.pa-prefix-input .pa-input-num {
+  border: none;
+  border-radius: 0;
+  width: 120px;
+}
+.pa-prefix-input .pa-input:focus { box-shadow: none; border: none; }
+.pa-prefix {
+  padding: 0.55rem 0.6rem;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 0.88rem;
+  border-right: 1px solid #e2e8f0;
+  font-weight: 600;
+}
+.pa-suffix {
+  padding: 0.55rem 0.6rem;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 0.88rem;
+  border-left: 1px solid #e2e8f0;
+  font-weight: 600;
+}
+
+.pa-split-bar {
+  display: flex;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-top: 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.pa-split-bar-output {
+  margin-top: 1rem;
+}
+.pa-split-seg {
+  padding: 0.5rem 0.75rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pa-split-spend { background: #dbeafe; color: #1e40af; }
+.pa-split-fee { background: #ede9fe; color: #4c1d95; }
+
+.pa-kw-add-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.pa-kw-input { flex: 1; max-width: 300px; }
+.pa-add-btn { padding: 0.5rem 1.1rem; font-size: 0.82rem; }
+.pa-kw-remove {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0 0.25rem;
+}
+.pa-kw-remove:hover { color: #ef4444; }
+
+.pa-scenario-row td { vertical-align: middle; }
+.pa-scenario-badge {
+  display: inline-block;
+  padding: 0.15rem 0.55rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.pa-scenario-badge-low { background: #fef9c3; color: #854d0e; }
+.pa-scenario-badge-mid { background: #dbeafe; color: #1e40af; }
+.pa-scenario-badge-high { background: #dcfce7; color: #166534; }
+
+.pa-output-note {
+  margin-top: 0.85rem;
+  font-size: 0.78rem;
+  color: #94a3b8;
+  line-height: 1.5;
+}
+
 /* ── Responsive ── */
 @media (max-width: 640px) {
   .two-col { grid-template-columns: 1fr; }
   .quote-metrics { grid-template-columns: 1fr 1fr; }
   .step-track { display: none; }
   .header-card { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
+  .pa-form-grid { grid-template-columns: 1fr; }
+  .pa-form-grid-3 { grid-template-columns: 1fr; }
 }

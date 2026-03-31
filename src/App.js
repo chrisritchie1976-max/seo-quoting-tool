@@ -34,6 +34,34 @@ export default function App() {
   const [selectedMetricKws, setSelectedMetricKws] = useState(new Set());
   const [metricsIndustry, setMetricsIndustry] = useState('');
 
+  // ── Paid Ads state ──
+  const [paBusinessName, setPaBusinessName] = useState('');
+  const [paOwnerName, setPaOwnerName] = useState('');
+  const [paPhone, setPaPhone] = useState('');
+  const [paEmail, setPaEmail] = useState('');
+  const [paIndustry, setPaIndustry] = useState('');
+  const [paLocation, setPaLocation] = useState('');
+  const [paServices, setPaServices] = useState([]);
+  const [paServiceInput, setPaServiceInput] = useState('');
+  const [paServiceAreas, setPaServiceAreas] = useState('');
+  const [paGoals, setPaGoals] = useState('');
+  const [paChallenges, setPaChallenges] = useState('');
+  const [paPromotions, setPaPromotions] = useState('');
+  const [paUSPs, setPaUSPs] = useState('');
+  const [paNotes, setPaNotes] = useState('');
+  const [paShowOptional, setPaShowOptional] = useState(false);
+  const [paBudget, setPaBudget] = useState('');
+  const [paBudgetMode, setPaBudgetMode] = useState('monthly');
+  const [paKeywords, setPaKeywords] = useState([]);
+  const [paKwInput, setPaKwInput] = useState('');
+  const [paCpcInput, setPaCpcInput] = useState('');
+  const [paCvrLow, setPaCvrLow] = useState('');
+  const [paCvrMid, setPaCvrMid] = useState('');
+  const [paCvrHigh, setPaCvrHigh] = useState('');
+  const [paCloseRate, setPaCloseRate] = useState('');
+  const [paJobValue, setPaJobValue] = useState('');
+  const [paAvgProfit, setPaAvgProfit] = useState('');
+
   const allKeywords = services.flatMap(s =>
     locations.map(l => `${s.toLowerCase()} ${l.toLowerCase()}`)
   );
@@ -218,6 +246,50 @@ export default function App() {
     metricsQuoteOutputs = { ts: mts, tier: mTier, pricing: mPricing, mr: mMr, roi: mRoi };
   }
 
+  // ── Paid Ads helpers ──
+  const addPaService = (s) => {
+    const t = s.trim();
+    if (t && !paServices.includes(t)) setPaServices(prev => [...prev, t]);
+    setPaServiceInput('');
+  };
+  const addPaKeyword = () => {
+    const kw = paKwInput.trim();
+    const cpc = parseFloat(paCpcInput);
+    if (!kw || isNaN(cpc) || cpc <= 0) return;
+    if (!paKeywords.find(k => k.keyword === kw)) {
+      setPaKeywords(prev => [...prev, { keyword: kw, cpc }]);
+    }
+    setPaKwInput(''); setPaCpcInput('');
+  };
+  const removePaKeyword = (kw) => setPaKeywords(prev => prev.filter(k => k.keyword !== kw));
+
+  // ── Paid Ads computation ──
+  const paMonthlyBudget = paBudgetMode === 'daily'
+    ? parseFloat(paBudget || 0) * 30
+    : parseFloat(paBudget || 0);
+  const paAdSpend = paMonthlyBudget * 0.75;
+  const paMgmtFee = paMonthlyBudget * 0.25;
+  const paAvgCpc = paKeywords.length > 0
+    ? paKeywords.reduce((s, k) => s + k.cpc, 0) / paKeywords.length
+    : 0;
+  const paClicks = paAvgCpc > 0 ? paAdSpend / paAvgCpc : 0;
+  const paDetailedMode = parseFloat(paAvgProfit) > 0;
+  const paReady = paMonthlyBudget > 0 && paAvgCpc > 0 &&
+    parseFloat(paCvrLow) > 0 && parseFloat(paCvrMid) > 0 && parseFloat(paCvrHigh) > 0 &&
+    parseFloat(paCloseRate) > 0 && parseFloat(paJobValue) > 0;
+  const paScenarios = ['Low', 'Mid', 'High'].map((label, i) => {
+    const cvr = parseFloat([paCvrLow, paCvrMid, paCvrHigh][i] || 0) / 100;
+    const cr = parseFloat(paCloseRate || 0) / 100;
+    const leads = paClicks * cvr;
+    const jobs = leads * cr;
+    const revenue = jobs * parseFloat(paJobValue || 0);
+    const costPerLead = leads > 0 ? paAdSpend / leads : 0;
+    const costPerJob = jobs > 0 ? paAdSpend / jobs : 0;
+    const roas = paAdSpend > 0 && revenue > 0 ? revenue / paAdSpend : 0;
+    const profit = paDetailedMode ? jobs * parseFloat(paAvgProfit) - paAdSpend : null;
+    return { label, leads, jobs, revenue, costPerLead, costPerJob, roas, profit };
+  });
+
   const step2Active = allKeywords.length > 0;
   const step3Active = !!quoteData;
 
@@ -233,7 +305,10 @@ export default function App() {
           Domain Analysis
         </button>
         <button className={`tab-btn${activeTab === 'quote' ? ' active' : ''}`} onClick={() => setActiveTab('quote')}>
-          Sales Quote
+          SEO Quote
+        </button>
+        <button className={`tab-btn${activeTab === 'paidads' ? ' active' : ''}`} onClick={() => setActiveTab('paidads')}>
+          Paid Ads Quote
         </button>
       </div>
 
@@ -642,6 +717,331 @@ export default function App() {
               </div>
             );
           })()}
+        </div>
+      )}
+      {/* ── Paid Ads Tab ── */}
+      {activeTab === 'paidads' && (
+        <div className="page-content">
+          <div className="header-card">
+            <div className="header-text">
+              <h1>Paid Ads Quote</h1>
+              <p>Build a Google Ads proposal with projected leads, jobs and ROI for your client</p>
+            </div>
+          </div>
+
+          {/* ── Step 1: Business Insights ── */}
+          <div className="section-card">
+            <div className="section-header">
+              <div className="section-num">1</div>
+              <div>
+                <div className="section-title">Business Insights</div>
+                <div className="section-sub">Client details and context — the more captured here, the stronger the campaign</div>
+              </div>
+            </div>
+
+            <div className="pa-form-grid">
+              <div className="pa-field">
+                <div className="col-label">Business Name</div>
+                <input className="pa-input" placeholder="e.g. Sydney Plumbing Co" value={paBusinessName} onChange={e => setPaBusinessName(e.target.value)} />
+              </div>
+              <div className="pa-field">
+                <div className="col-label">Owner Name</div>
+                <input className="pa-input" placeholder="e.g. John Smith" value={paOwnerName} onChange={e => setPaOwnerName(e.target.value)} />
+              </div>
+              <div className="pa-field">
+                <div className="col-label">Phone</div>
+                <input className="pa-input" placeholder="e.g. 0400 000 000" value={paPhone} onChange={e => setPaPhone(e.target.value)} />
+              </div>
+              <div className="pa-field">
+                <div className="col-label">Email</div>
+                <input className="pa-input" placeholder="e.g. john@business.com.au" value={paEmail} onChange={e => setPaEmail(e.target.value)} />
+              </div>
+              <div className="pa-field">
+                <div className="col-label">Industry</div>
+                <input className="pa-input" placeholder="e.g. Plumbing, Electrical, Dental" value={paIndustry} onChange={e => setPaIndustry(e.target.value)} />
+              </div>
+              <div className="pa-field">
+                <div className="col-label">Location</div>
+                <input className="pa-input" placeholder="e.g. Sydney NSW" value={paLocation} onChange={e => setPaLocation(e.target.value)} />
+              </div>
+            </div>
+
+            <div className="pa-field" style={{ marginTop: '1rem' }}>
+              <div className="col-label">Top Services</div>
+              <div className="chip-list">
+                {paServices.map(s => (
+                  <span key={s} className="chip chip-service">
+                    {s} <button onClick={() => setPaServices(prev => prev.filter(x => x !== s))}>×</button>
+                  </span>
+                ))}
+              </div>
+              <div className="search-input-box">
+                <input
+                  className="search-input"
+                  placeholder="e.g. Emergency Plumbing — press Enter to add"
+                  value={paServiceInput}
+                  onChange={e => setPaServiceInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addPaService(paServiceInput); } }}
+                  onBlur={() => { if (paServiceInput.trim()) addPaService(paServiceInput); }}
+                />
+              </div>
+            </div>
+
+            <div className="pa-field" style={{ marginTop: '1rem' }}>
+              <div className="col-label">Service Areas</div>
+              <input className="pa-input" placeholder="e.g. Sydney CBD, Inner West, North Shore" value={paServiceAreas} onChange={e => setPaServiceAreas(e.target.value)} />
+            </div>
+
+            <button className="pa-optional-toggle" onClick={() => setPaShowOptional(v => !v)}>
+              {paShowOptional ? '▲ Hide' : '▼ Show'} optional fields (goals, challenges, promotions, USPs)
+            </button>
+
+            {paShowOptional && (
+              <div className="pa-form-grid" style={{ marginTop: '1rem' }}>
+                <div className="pa-field">
+                  <div className="col-label">Goals</div>
+                  <textarea className="pa-textarea" placeholder="What does the client want to achieve?" value={paGoals} onChange={e => setPaGoals(e.target.value)} />
+                </div>
+                <div className="pa-field">
+                  <div className="col-label">Challenges / Blockers</div>
+                  <textarea className="pa-textarea" placeholder="Current pain points or blockers" value={paChallenges} onChange={e => setPaChallenges(e.target.value)} />
+                </div>
+                <div className="pa-field">
+                  <div className="col-label">Promotions</div>
+                  <textarea className="pa-textarea" placeholder="Any offers or seasonal promotions" value={paPromotions} onChange={e => setPaPromotions(e.target.value)} />
+                </div>
+                <div className="pa-field">
+                  <div className="col-label">USPs</div>
+                  <textarea className="pa-textarea" placeholder="What makes this business stand out?" value={paUSPs} onChange={e => setPaUSPs(e.target.value)} />
+                </div>
+                <div className="pa-field" style={{ gridColumn: '1 / -1' }}>
+                  <div className="col-label">Additional Notes</div>
+                  <textarea className="pa-textarea" placeholder="Anything else the strategist should know" value={paNotes} onChange={e => setPaNotes(e.target.value)} />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ── Step 2: Campaign Numbers ── */}
+          <div className="section-card">
+            <div className="section-header">
+              <div className="section-num">2</div>
+              <div>
+                <div className="section-title">Campaign Numbers</div>
+                <div className="section-sub">Budget, keywords and conversion assumptions — all fields required to generate output</div>
+              </div>
+            </div>
+
+            {/* Budget */}
+            <div className="pa-field">
+              <div className="col-label">Monthly Ad Budget (total package)</div>
+              <div className="pa-budget-row">
+                <div className="pa-budget-toggle">
+                  <button className={paBudgetMode === 'monthly' ? 'active' : ''} onClick={() => setPaBudgetMode('monthly')}>Monthly</button>
+                  <button className={paBudgetMode === 'daily' ? 'active' : ''} onClick={() => setPaBudgetMode('daily')}>Daily</button>
+                </div>
+                <div className="pa-prefix-input">
+                  <span className="pa-prefix">$</span>
+                  <input
+                    className="pa-input pa-input-num"
+                    type="number"
+                    min="0"
+                    placeholder={paBudgetMode === 'daily' ? 'e.g. 50' : 'e.g. 1500'}
+                    value={paBudget}
+                    onChange={e => setPaBudget(e.target.value)}
+                  />
+                </div>
+              </div>
+              {paMonthlyBudget > 0 && (
+                <div className="pa-split-bar">
+                  <div className="pa-split-seg pa-split-spend" style={{ width: '75%' }}>
+                    Ad Spend 75% — {fmtAUD(paAdSpend)}/mo
+                  </div>
+                  <div className="pa-split-seg pa-split-fee" style={{ width: '25%' }}>
+                    Mgmt 25% — {fmtAUD(paMgmtFee)}/mo
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Keywords + CPC */}
+            <div className="pa-field" style={{ marginTop: '1.25rem' }}>
+              <div className="col-label">Keywords &amp; CPC</div>
+              <div className="col-hint">Enter each keyword you plan to target and its estimated CPC (from Google Keyword Planner)</div>
+              {paKeywords.length > 0 && (
+                <div className="kw-table-wrap" style={{ marginBottom: '0.75rem' }}>
+                  <table className="kw-table">
+                    <thead>
+                      <tr>
+                        <th>Keyword</th>
+                        <th className="num-col">CPC</th>
+                        <th className="num-col"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paKeywords.map((k, i) => (
+                        <tr key={i}>
+                          <td className="kw-cell">{k.keyword}</td>
+                          <td className="num-col">${k.cpc.toFixed(2)}</td>
+                          <td className="num-col">
+                            <button className="pa-kw-remove" onClick={() => removePaKeyword(k.keyword)}>×</button>
+                          </td>
+                        </tr>
+                      ))}
+                      {paKeywords.length > 1 && (
+                        <tr style={{ borderTop: '2px solid #f1f5f9' }}>
+                          <td className="kw-cell" style={{ color: '#64748b', fontSize: '0.8rem' }}>Avg CPC</td>
+                          <td className="num-col" style={{ fontWeight: 700 }}>${paAvgCpc.toFixed(2)}</td>
+                          <td />
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <div className="pa-kw-add-row">
+                <input
+                  className="pa-input pa-kw-input"
+                  placeholder="Keyword"
+                  value={paKwInput}
+                  onChange={e => setPaKwInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && addPaKeyword()}
+                />
+                <div className="pa-prefix-input">
+                  <span className="pa-prefix">$</span>
+                  <input
+                    className="pa-input pa-input-num"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="CPC"
+                    value={paCpcInput}
+                    onChange={e => setPaCpcInput(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && addPaKeyword()}
+                  />
+                </div>
+                <button className="regen-btn pa-add-btn" onClick={addPaKeyword}>Add</button>
+              </div>
+            </div>
+
+            {/* CVR + Close Rate + Job Value */}
+            <div className="pa-form-grid pa-form-grid-3" style={{ marginTop: '1.25rem' }}>
+              <div className="pa-field">
+                <div className="col-label">CVR — Low %</div>
+                <div className="col-hint">Conservative conversion rate</div>
+                <div className="pa-prefix-input">
+                  <input className="pa-input pa-input-num" type="number" min="0" max="100" placeholder="e.g. 5" value={paCvrLow} onChange={e => setPaCvrLow(e.target.value)} />
+                  <span className="pa-suffix">%</span>
+                </div>
+              </div>
+              <div className="pa-field">
+                <div className="col-label">CVR — Mid %</div>
+                <div className="col-hint">Expected conversion rate</div>
+                <div className="pa-prefix-input">
+                  <input className="pa-input pa-input-num" type="number" min="0" max="100" placeholder="e.g. 10" value={paCvrMid} onChange={e => setPaCvrMid(e.target.value)} />
+                  <span className="pa-suffix">%</span>
+                </div>
+              </div>
+              <div className="pa-field">
+                <div className="col-label">CVR — High %</div>
+                <div className="col-hint">Optimistic conversion rate</div>
+                <div className="pa-prefix-input">
+                  <input className="pa-input pa-input-num" type="number" min="0" max="100" placeholder="e.g. 15" value={paCvrHigh} onChange={e => setPaCvrHigh(e.target.value)} />
+                  <span className="pa-suffix">%</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="pa-form-grid" style={{ marginTop: '1rem' }}>
+              <div className="pa-field">
+                <div className="col-label">Close Rate %</div>
+                <div className="col-hint">Lead to booked job conversion</div>
+                <div className="pa-prefix-input">
+                  <input className="pa-input pa-input-num" type="number" min="0" max="100" placeholder="e.g. 30" value={paCloseRate} onChange={e => setPaCloseRate(e.target.value)} />
+                  <span className="pa-suffix">%</span>
+                </div>
+              </div>
+              <div className="pa-field">
+                <div className="col-label">Avg Job Value</div>
+                <div className="col-hint">Revenue per booked job</div>
+                <div className="pa-prefix-input">
+                  <span className="pa-prefix">$</span>
+                  <input className="pa-input pa-input-num" type="number" min="0" placeholder="e.g. 800" value={paJobValue} onChange={e => setPaJobValue(e.target.value)} />
+                </div>
+              </div>
+            </div>
+
+            <div className="pa-field" style={{ marginTop: '1rem' }}>
+              <div className="col-label">Avg Profit per Job <span className="pa-optional-label">optional — unlocks detailed output</span></div>
+              <div className="pa-prefix-input" style={{ maxWidth: '200px' }}>
+                <span className="pa-prefix">$</span>
+                <input className="pa-input pa-input-num" type="number" min="0" placeholder="e.g. 300" value={paAvgProfit} onChange={e => setPaAvgProfit(e.target.value)} />
+              </div>
+            </div>
+          </div>
+
+          {/* ── Step 3: Output ── */}
+          {paReady && (
+            <div className="quote-card">
+              <div className="quote-header">
+                <div className="section-num-light">3</div>
+                <div style={{ flex: 1 }}>
+                  <div className="quote-title">Campaign Projection</div>
+                  <div className="quote-sub">
+                    {fmtAUD(paMonthlyBudget)}/mo total · {fmtAUD(paAdSpend)} ad spend · {fmtAUD(paMgmtFee)} mgmt fee
+                    {paKeywords.length > 0 && ` · ${paKeywords.length} keyword${paKeywords.length !== 1 ? 's' : ''} · avg CPC $${paAvgCpc.toFixed(2)}`}
+                  </div>
+                </div>
+                <div className="check-circle">✓</div>
+              </div>
+
+              {/* Budget split visual */}
+              <div className="pa-split-bar pa-split-bar-output">
+                <div className="pa-split-seg pa-split-spend" style={{ width: '75%' }}>Ad Spend — {fmtAUD(paAdSpend)}</div>
+                <div className="pa-split-seg pa-split-fee" style={{ width: '25%' }}>Mgmt — {fmtAUD(paMgmtFee)}</div>
+              </div>
+
+              {/* Scenario table */}
+              <div className="kw-table-wrap" style={{ marginTop: '1rem' }}>
+                <table className="kw-table">
+                  <thead>
+                    <tr>
+                      <th>Scenario</th>
+                      <th className="num-col">Est. Clicks</th>
+                      <th className="num-col">Est. Leads</th>
+                      <th className="num-col">Est. Jobs</th>
+                      <th className="num-col">Cost/Lead</th>
+                      <th className="num-col">Cost/Job</th>
+                      {paDetailedMode && <th className="num-col">Revenue</th>}
+                      {paDetailedMode && <th className="num-col">ROAS</th>}
+                      {paDetailedMode && <th className="num-col">Profit</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paScenarios.map(s => (
+                      <tr key={s.label} className={`pa-scenario-row pa-scenario-${s.label.toLowerCase()}`}>
+                        <td><span className={`pa-scenario-badge pa-scenario-badge-${s.label.toLowerCase()}`}>{s.label}</span></td>
+                        <td className="num-col">{Math.round(paClicks).toLocaleString()}</td>
+                        <td className="num-col">{Math.round(s.leads).toLocaleString()}</td>
+                        <td className="num-col">{s.jobs.toFixed(1)}</td>
+                        <td className="num-col">{fmtAUD(s.costPerLead)}</td>
+                        <td className="num-col">{fmtAUD(s.costPerJob)}</td>
+                        {paDetailedMode && <td className="num-col">{fmtAUD(s.revenue)}</td>}
+                        {paDetailedMode && <td className="num-col">{s.roas > 0 ? s.roas.toFixed(1) + 'x' : '—'}</td>}
+                        {paDetailedMode && <td className="num-col" style={{ color: s.profit >= 0 ? '#16a34a' : '#dc2626' }}>{fmtAUD(s.profit)}</td>}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="pa-output-note">
+                Projections based on {fmtAUD(paAdSpend)}/mo ad spend ÷ ${paAvgCpc.toFixed(2)} avg CPC = ~{Math.round(paClicks).toLocaleString()} clicks/mo.
+                Leads = clicks × CVR. Jobs = leads × {paCloseRate}% close rate.
+                {paDetailedMode && ' Revenue and profit use avg job value and profit figures entered above.'}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
